@@ -1,5 +1,8 @@
 fastapi
-uvicorn
-requests
+uvicorn[standard]
 python-dotenv
 numpy
+httpx
+google-generativeai
+cloudinary
+pydantic
