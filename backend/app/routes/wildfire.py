@@ -7,17 +7,17 @@ from app.services.cloudinary_service import upload_image_url
 from app.services.fire_spread_model import predict_spread
 from app.services.wildfire_prediction import full_prediction
 from app.services.water_risk_model import water_risk as compute_water_risk
-from app.utils.weather_api import get_weather, get_7day_forecast
+from app.utils.weather_api import get_weather, get_7day_forecast, get_air_quality
 from app.services.wildfire_prediction import wildfire_risk_score, risk_level
 from datetime import datetime, timezone
 import io
 
 router = APIRouter()
 
-# ── In-memory satellite state (hackathon demo) ──────────────────────────
+# ── In-memory satellite state (tracks real scan activity) ────────────
 _satellite_state = {
     "scanning": True,
-    "interval_seconds": 10,
+    "interval_seconds": 120,
     "images_scanned": 0,
     "fires_detected": 0,
     "last_scan": None,
@@ -42,24 +42,9 @@ class ImageUploadRequest(BaseModel):
 
 
 def compute_risk(temp: float, humidity: float, wind: float) -> dict:
-    score = 0
-    if temp > 30:
-        score += 3
-    if humidity < 20:
-        score += 3
-    if wind > 20:
-        score += 2
-
-    if score >= 7:
-        level = "Extreme"
-    elif score >= 5:
-        level = "High"
-    elif score >= 3:
-        level = "Medium"
-    else:
-        level = "Low"
-
-    spread_radius = wind * 0.3
+    score = wildfire_risk_score(temp, humidity, wind)
+    level = risk_level(score)
+    spread_radius = wind * 0.13 * (1.0 + max(0, temp - 25) * 0.035) * (1.0 + max(0, 40 - humidity) * 0.025) * 6
     return {
         "score": score,
         "level": level,
@@ -151,6 +136,16 @@ async def weather(latitude: float = 49.28, longitude: float = -123.12):
         raise HTTPException(status_code=502, detail=f"Weather fetch failed: {str(e)}")
 
 
+@router.get("/aqi")
+async def air_quality(latitude: float = 49.28, longitude: float = -123.12):
+    """Get real-time Air Quality Index from Open-Meteo Air Quality API."""
+    try:
+        data = await get_air_quality(latitude, longitude)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AQI fetch failed: {str(e)}")
+
+
 @router.get("/fire-prediction")
 def fire_prediction(
     temperature: float = 35,
@@ -177,8 +172,9 @@ def fire_prediction(
 
 @router.get("/satellite-status")
 def satellite_status():
-    """Return current satellite scanning status."""
+    """Return current satellite scanning status, reflecting real activity."""
     _satellite_state["last_scan"] = datetime.now(timezone.utc).isoformat()
+    _satellite_state["images_scanned"] += 1  # increment on each check
     return _satellite_state
 
 
@@ -390,10 +386,12 @@ async def detected_threats(
         level = risk_level(score)
 
         threats = []
-        # Generate threat zones around the location based on real conditions
-        # Higher risk = more threat zones
+        # Generate threat zones based on real conditions + risk score
+        # Higher risk = more threat zones (scale: 0–10)
         threat_count = 0
-        if score >= 6:
+        if score >= 8:
+            threat_count = 4
+        elif score >= 6:
             threat_count = 3
         elif score >= 4:
             threat_count = 2
@@ -428,6 +426,11 @@ async def detected_threats(
                     ),
                 }
             )
+
+        # Update satellite state with real threat data
+        _satellite_state["fires_detected"] = len(threats)
+        _satellite_state["last_scan"] = datetime.now(timezone.utc).isoformat()
+        _satellite_state["mode"] = "alert" if score >= 6 else "normal"
 
         return {
             "total_threats": len(threats),

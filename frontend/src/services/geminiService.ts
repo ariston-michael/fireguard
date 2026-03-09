@@ -3,6 +3,7 @@ export async function askGemini(prompt: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
+      prompt,
       temperature: 35,
       humidity: 15,
       wind_speed: 25,

@@ -79,6 +79,7 @@ interface MapPanelProps {
   fireDirection: string;
   windDirection: number;
   onMapClick?: (lat: number, lng: number) => void;
+  threats?: { latitude: number; longitude: number; severity: string; radius_km: number }[];
 }
 
 export default function MapPanel({
@@ -89,6 +90,7 @@ export default function MapPanel({
   fireDirection,
   windDirection,
   onMapClick,
+  threats = [],
 }: MapPanelProps) {
   const [leftFull, setLeftFull] = useState(false);
   const [rightFull, setRightFull] = useState(false);
@@ -102,22 +104,10 @@ export default function MapPanel({
           ? "#eab308"
           : "#22c55e";
 
-  /* Generate simulated fire-spread markers around center (memoized) */
-  const fireMarkers = useMemo(() => {
-    const markers: [number, number][] = [];
-    if (riskLevel !== "Low") {
-      const count = riskLevel === "Extreme" ? 8 : riskLevel === "High" ? 5 : 3;
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const dist = spreadRadiusKm * 0.01 * (0.3 + 0.5);
-        markers.push([
-          center[0] + Math.cos(angle) * dist,
-          center[1] + Math.sin(angle) * dist,
-        ]);
-      }
-    }
-    return markers;
-  }, [center[0], center[1], spreadRadiusKm, riskLevel]);
+  /* Use real threat positions from the /threats endpoint */
+  const fireMarkers: [number, number][] = useMemo(() => {
+    return threats.map((t) => [t.latitude, t.longitude] as [number, number]);
+  }, [threats]);
 
   return (
     <div className="map-section">
@@ -186,16 +176,20 @@ export default function MapPanel({
                 </Popup>
               </Marker>
               {/* Spread radius circle */}
-              <Circle
-                center={center}
-                radius={spreadRadiusKm * 1000}
-                pathOptions={{
-                  color: riskColor,
-                  fillColor: riskColor,
-                  fillOpacity: 0.12,
-                  weight: 2,
-                }}
-              />
+              {/* Spread radius circle */}
+              {spreadRadiusKm > 0 && (
+                <Circle
+                  center={center}
+                  radius={spreadRadiusKm * 1000}
+                  pathOptions={{
+                    color: riskColor,
+                    fillColor: riskColor,
+                    fillOpacity: 0.25,
+                    weight: 3,
+                    dashArray: "8 4",
+                  }}
+                />
+              )}
               {/* Simulated fire markers */}
               {fireMarkers.map((pos, i) => (
                 <Marker key={i} position={pos} icon={fireIcon}>

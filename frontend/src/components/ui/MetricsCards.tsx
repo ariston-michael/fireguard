@@ -27,6 +27,10 @@ interface MetricsCardsProps {
   spreadRadius: number;
   waterRisk: string;
   satelliteScans: number;
+  aqi: number | null;
+  aqiCategory: string;
+  aqiHealth: string;
+  confidence: number;
 }
 
 export default function MetricsCards({
@@ -37,21 +41,11 @@ export default function MetricsCards({
   riskScore,
   spreadRadius,
   waterRisk,
+  aqi,
+  aqiCategory,
+  aqiHealth,
+  confidence,
 }: MetricsCardsProps) {
-  // Derive prediction confidence from risk score range
-  const confidence = riskScore >= 6 ? 94 : riskScore >= 4 ? 82 : riskScore >= 2 ? 71 : 65;
-
-  // Derive air quality from temperature & humidity (simplified AQI estimate)
-  let aqi: string;
-  if (temperature !== null && humidity !== null) {
-    const raw = Math.round(
-      30 + (temperature > 30 ? (temperature - 30) * 3 : 0) + (humidity < 30 ? (30 - humidity) * 0.8 : 0)
-    );
-    aqi = raw > 100 ? "Unhealthy" : raw > 60 ? "Moderate" : "Good";
-  } else {
-    aqi = "--";
-  }
-
   return (
     <div className="metrics-grid">
       <MetricCard
@@ -75,18 +69,18 @@ export default function MetricsCards({
       <MetricCard
         label="Wildfire Risk"
         value={riskLevel}
-        sub={`Score ${riskScore}/8 · ${spreadRadius} km radius`}
+        sub={`Score ${riskScore}/10 · ${spreadRadius} km radius`}
       />
       <MetricCard
         label="Air Quality"
-        value={aqi}
-        sub={waterRisk !== "Low" ? `Water risk: ${waterRisk}` : "Normal levels"}
+        value={aqi !== null ? aqi : "--"}
+        sub={aqi !== null ? `${aqiCategory} · ${aqiHealth}` : "Loading..."}
       />
       <MetricCard
         label="Prediction Confidence"
         value={confidence}
         unit="%"
-        sub="Model accuracy"
+        sub={waterRisk !== "Low" ? `Water risk: ${waterRisk}` : "Model accuracy"}
       />
     </div>
   );

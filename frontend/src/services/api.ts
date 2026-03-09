@@ -60,6 +60,7 @@ export interface FirePredictionResponse {
   detection_timestamp: string;
   fire_direction: string;
   water_contamination: string;
+  confidence: number;
   spread_model: {
     spread_rate_km_h: number;
     wind_direction_deg: number;
@@ -110,6 +111,21 @@ export interface ForecastRiskDay {
 
 export interface ForecastRiskResponse {
   days: ForecastRiskDay[];
+}
+
+export interface AirQualityResponse {
+  aqi: number | null;
+  category: string;
+  health_message: string;
+  european_aqi: number | null;
+  pollutants: {
+    pm2_5?: number;
+    pm10?: number;
+    ozone?: number;
+    nitrogen_dioxide?: number;
+    sulphur_dioxide?: number;
+    carbon_monoxide?: number;
+  };
 }
 
 export interface Threat {
@@ -204,6 +220,14 @@ export async function getThreats(
   longitude = -123.12
 ): Promise<ThreatsResponse> {
   const res = await api.get("/threats", { params: { latitude, longitude } });
+  return res.data;
+}
+
+export async function getAirQuality(
+  latitude = 49.28,
+  longitude = -123.12
+): Promise<AirQualityResponse> {
+  const res = await api.get("/aqi", { params: { latitude, longitude } });
   return res.data;
 }
 

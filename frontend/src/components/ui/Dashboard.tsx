@@ -15,6 +15,7 @@ import {
   getThreats,
   getForecast,
   getForecastRisk,
+  getAirQuality,
   playVoiceAlert,
 } from "../../services/api";
 import type {
@@ -24,6 +25,7 @@ import type {
   Threat,
   ForecastDay,
   ForecastRiskDay,
+  AirQualityResponse,
 } from "../../services/api";
 
 /* ── Date / Time formatter ──────────────────────────────────────────── */
@@ -63,6 +65,7 @@ export default function Dashboard() {
   const [threatScanTime, setThreatScanTime] = useState<string | null>(null);
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
   const [riskForecast, setRiskForecast] = useState<ForecastRiskDay[]>([]);
+  const [airQuality, setAirQuality] = useState<AirQualityResponse | null>(null);
 
   // UI
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -143,7 +146,7 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     if (lat === null || lng === null) return; // wait for GPS
     try {
-      const [w, p, t] = await Promise.all([
+      const [w, p, t, aq] = await Promise.all([
         getWeather(lat, lng),
         getFirePrediction({
           temperature: weather?.temperature ?? 35,
@@ -154,12 +157,14 @@ export default function Dashboard() {
           longitude: lng,
         }),
         getThreats(lat, lng),
+        getAirQuality(lat, lng),
       ]);
       setWeather(w);
       setPrediction(p);
       setThreats(t.threats);
       setThreatRiskLevel(t.risk_level);
       setThreatScanTime(t.scan_time);
+      setAirQuality(aq);
     } catch (err) {
       console.error("Data fetch failed:", err);
     }
@@ -180,10 +185,10 @@ export default function Dashboard() {
     }
   }, [lat, lng]);
 
-  // Initial load + auto-refresh every 30s
+  // Initial load + auto-refresh every 2 min
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, 30000);
+    const id = setInterval(fetchData, 120000);
     return () => clearInterval(id);
   }, [fetchData]);
 
@@ -312,6 +317,10 @@ export default function Dashboard() {
         spreadRadius={spreadRadius}
         waterRisk={waterRisk}
         satelliteScans={threats.length}
+        aqi={airQuality?.aqi ?? null}
+        aqiCategory={airQuality?.category ?? "Loading..."}
+        aqiHealth={airQuality?.health_message ?? ""}
+        confidence={prediction?.confidence ?? 0}
       />
 
       {/* ── Side-by-side maps + info strip ─────────────────────────── */}
@@ -323,6 +332,7 @@ export default function Dashboard() {
         fireDirection={prediction?.fire_direction ?? "N/A"}
         windDirection={windDir ?? 180}
         onMapClick={handleMapClick}
+        threats={threats}
       />
 
       {/* ── 7-Day Forecast & Risk ──────────────────────────────────── */}

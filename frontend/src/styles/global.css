@@ -1003,6 +1003,26 @@ body {
   z-index: 1;
 }
 
+.leaflet-overlay-pane {
+  z-index: 2;
+}
+
+.leaflet-shadow-pane {
+  z-index: 3;
+}
+
+.leaflet-marker-pane {
+  z-index: 4;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 5;
+}
+
+.leaflet-popup-pane {
+  z-index: 6;
+}
+
 .leaflet-control-attribution {
   background: rgba(0, 0, 0, 0.5) !important;
   color: var(--text-muted) !important;

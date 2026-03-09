@@ -1,5 +1,4 @@
 import math
-import numpy as np
 
 
 def predict_spread(
@@ -10,12 +9,13 @@ def predict_spread(
     hours: int = 6,
 ) -> dict:
     """
-    Compute predicted fire spread over N hours.
+    Compute predicted fire spread over N hours using McArthur-inspired
+    rate-of-spread factors driven by real weather inputs.
     Returns radius, direction, affected area, and hourly progression.
     """
-    base_rate = wind_speed * 0.3  # km/h base spread
-    temp_factor = 1.0 + max(0, temperature - 25) * 0.04
-    humidity_factor = 1.0 + max(0, 40 - humidity) * 0.02
+    base_rate = wind_speed * 0.13  # km/h base spread from wind
+    temp_factor = 1.0 + max(0, temperature - 25) * 0.035
+    humidity_factor = 1.0 + max(0, 40 - humidity) * 0.025
     rate_km_h = base_rate * temp_factor * humidity_factor
 
     progression = []
